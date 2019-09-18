@@ -38,12 +38,12 @@ pub fn boot_from(scb: &mut cortex_m::peripheral::SCB, address: u32){
 }
 
 pub fn cc310_enable(){
-    let mut peripherals = nrf91::Peripherals::take().unwrap();
+    let  peripherals = nrf91::Peripherals::take().unwrap();
     peripherals.CRYPTOCELL_S.enable.write(|w| w.enable().enabled());
 }
 
 pub fn cc310_disable(){
-    let mut peripherals = nrf91::Peripherals::take().unwrap();
+    let peripherals = nrf91::Peripherals::take().unwrap();
     peripherals.CRYPTOCELL_S.enable.write(|w| w.enable().disabled());
 }
 
@@ -58,17 +58,17 @@ pub fn cc310_init() -> bl_cc310::CRYSError_t {
     return ret;
 }
 
-pub fn cc310_ecdsa_validate(public_key : u8, signature: u8, hash : u8, hash_len : u32) -> bl_cc310::CRYSError_t
+pub fn cc310_ecdsa_validate(public_key : *const bl_cc310::nrf_cc310_bl_ecc_public_key_secp256r1_t,
+                            signature: *const bl_cc310::nrf_cc310_bl_ecc_signature_secp256r1_t,
+                            hash : *const u8, hash_len: u32) -> bl_cc310::CRYSError_t
 {
     cc310_enable();
     let mut ret = 0;
     let mut ctx = bl_cc310::nrf_cc310_bl_ecdsa_verify_context_secp256r1_t { init_val: 0, context_buffer: [0; 160usize]};
     let ctx_pointer = &mut ctx as *mut bl_cc310::nrf_cc310_bl_ecdsa_verify_context_secp256r1_t;
-    /*
     unsafe{
         ret = bl_cc310::nrf_cc310_bl_ecdsa_verify_secp256r1(ctx_pointer, public_key, signature, hash, hash_len);
     }
-    */
     cc310_disable();
     return ret;
 
@@ -76,8 +76,26 @@ pub fn cc310_ecdsa_validate(public_key : u8, signature: u8, hash : u8, hash_len 
 
 #[entry]
 fn main() -> ! {
-    let ret = cc310_init();
+    let _ret = cc310_init();
     let mut core_periphials = nrf91::CorePeripherals::take().unwrap() ;
+
+    let public_key = bl_cc310::nrf_cc310_bl_ecc_public_key_secp256r1_t {
+        x: [0; 32usize],
+        y: [0; 32usize]
+    };
+
+    let signature = bl_cc310::nrf_cc310_bl_ecc_signature_secp256r1_t
+    {
+        r: [0; 32usize],
+        s: [0; 32usize]
+    };
+
+    //"test" in sha256
+    let hash = "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08";
+    
+    //cc310_ecdsa_validate(public_key, signature, hash.as_ptr(), hash.len());
+
+
     boot_from(&mut core_periphials.SCB, 0x4000);
     loop
     {
